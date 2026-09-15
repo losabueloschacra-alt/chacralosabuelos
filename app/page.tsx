@@ -9,8 +9,7 @@ import ReservationForm from '../components/ReservationForm';
 import type { Block, Reservation } from '../lib/types';
 import { ALIAS, PRICING, RAIN_TEXT, WHATSAPP } from '../lib/config';
 
-const money = (value: number) =>
-`$${value.toLocaleString('es-AR')}`;
+const money = (value: number) => `$${value.toLocaleString('es-AR')}`;
 
 export default function Home() {
 const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -19,7 +18,6 @@ const [selection, setSelection] = useState({
 start: '',
 end: '',
 });
-
 const [error, setError] = useState('');
 const [loading, setLoading] = useState(true);
 
@@ -72,15 +70,26 @@ useEffect(() => {
 refresh();
 }, [refresh]);
 
-function handlePick(start: string, end: string) {
+const handlePick = (start: string, end: string) => {
 setSelection({
 start,
 end,
 });
-}
+};
 
-return ( <main>
-{/* HERO */} <header className="hero"> <div className="brand"> <Image
+const handleDone = () => {
+setSelection({
+start: '',
+end: '',
+});
+
+```
+refresh();
+```
+
+};
+
+return ( <main> <header className="hero"> <div className="brand"> <Image
          src="/logo.png"
          alt="Los Abuelos Chacra"
          width={180}
@@ -110,7 +119,6 @@ return ( <main>
     <div className="hero-line" />
   </header>
 
-  {/* RESERVAS */}
   <section
     className="booking"
     id="reservar"
@@ -127,7 +135,6 @@ return ( <main>
       </div>
     </div>
 
-    {/* ERROR DE DISPONIBILIDAD */}
     {error && (
       <div
         className="message"
@@ -137,7 +144,6 @@ return ( <main>
       </div>
     )}
 
-    {/* ESTADO DE CARGA */}
     {loading ? (
       <div className="message">
         Cargando disponibilidad…
@@ -150,7 +156,6 @@ return ( <main>
       />
     )}
 
-    {/* TARIFAS */}
     <section
       className="rates rates-inline"
       aria-label="Tarifas"
@@ -192,36 +197,25 @@ return ( <main>
       </div>
     </section>
 
-    {/* CAPACIDAD */}
     <div className="capacity-note">
       <b>Capacidad</b>
 
       <span>
         Estadías para quedarse a dormir: hasta{' '}
-        {PRICING.maxPeople} personas.
-        Eventos: modalidad masiva, para más
-        personas.
+        {PRICING.maxPeople} personas. Eventos:
+        modalidad masiva, para más personas.
       </span>
     </div>
 
-    {/* FORMULARIO */}
     {selection.start && (
       <ReservationForm
         start={selection.start}
         end={selection.end}
-        onDone={() => {
-          setSelection({
-            start: '',
-            end: '',
-          });
-
-          refresh();
-        }}
+        onDone={handleDone}
       />
     )}
   </section>
 
-  {/* INFORMACIÓN */}
   <section className="info">
     <div>
       <b>Reserva</b>
@@ -252,7 +246,6 @@ return ( <main>
     </div>
   </section>
 
-  {/* FOOTER */}
   <footer>
     <span>
       LOS ABUELOS · CHACRA
