@@ -1,45 +1,380 @@
 'use client';
+
 import { useMemo, useState } from 'react';
 import { MONTHS, SPECIAL_DATES } from '../lib/config';
 import type { Block, Reservation } from '../lib/types';
 
-function iso(y:number,m:number,d:number){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`}
-function monthDays(y:number,m:number){return new Date(y,m+1,0).getDate()}
-function overlaps(day:string,r:Reservation){return day>=r.start && day<r.end && (r.status==='PENDIENTE'||r.status==='CONFIRMADA')}
-function blockedByManual(day:string,b:Block){return day>=b.start && day<b.end}
+type CalendarMode = 'stay' | 'event';
 
-export default function Calendar({reservations,blocks,onPick}:{reservations:Reservation[],blocks:Block[],onPick:(start:string,end:string)=>void}){
-  const [monthIndex,setMonthIndex]=useState(0);
-  const [start,setStart]=useState('');
-  const [end,setEnd]=useState('');
-  const m=MONTHS[monthIndex];
-  const days=monthDays(m.year,m.month);
-  const first=new Date(m.year,m.month,1).getDay();
-  const offset=(first+6)%7;
-  const cells=useMemo(()=>Array.from({length:offset+days},(_,i)=>i<offset?null:i-offset+1),[offset,days]);
-  const isReserved=(day:number)=>reservations.some(r=>overlaps(iso(m.year,m.month,day),r));
-  const isBlocked=(day:number)=>blocks.some(b=>blockedByManual(iso(m.year,m.month,day),b));
-  const special=(day:number)=>SPECIAL_DATES.find(x=>x.date===iso(m.year,m.month,day));
+type Props = {
+  reservations: Reservation[];
+  blocks: Block[];
+  mode: CalendarMode;
+  onPick: (start: string, end: string) => void;
+};
 
-  function select(d:number){
-    const day=iso(m.year,m.month,d);
-    if(isReserved(d)||isBlocked(d)) return;
-    if(!start || end){ setStart(day); setEnd(''); onPick(day,''); return; }
-    if(day<=start){ setStart(day); setEnd(''); return; }
-    const span=Math.round((new Date(`${day}T12:00:00`).getTime()-new Date(`${start}T12:00:00`).getTime())/86400000);
-    const range=Array.from({length:span},(_,i)=>{
-      const dt=new Date(`${start}T12:00:00`); dt.setDate(dt.getDate()+i); return dt.toISOString().slice(0,10);
-    });
-    if(range.some(x=>reservations.some(r=>overlaps(x,r)) || blocks.some(b=>blockedByManual(x,b)))) return;
-    setEnd(day); onPick(start,day);
+function iso(y: number, m: number, d: number) {
+  return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(
+    2,
+    '0'
+  )}`;
+}
+
+function monthDays(y: number, m: number) {
+  return new Date(y, m + 1, 0).getDate();
+}
+
+function addDays(date: string, amount: number) {
+  const d = new Date(`${date}T12:00:00`);
+  d.setDate(d.getDate() + amount);
+  return d.toISOString().slice(0, 10);
+}
+
+function overlaps(day: string, reservation: Reservation) {
+  return (
+    day >= reservation.start &&
+    day < reservation.end &&
+    (reservation.status === 'PENDIENTE' ||
+      reservation.status === 'CONFIRMADA')
+  );
+}
+
+function blockedByManual(day: string, block: Block) {
+  return day >= block.start && day < block.end;
+}
+
+export default function Calendar({
+  reservations,
+  blocks,
+  mode,
+  onPick,
+}: Props) {
+  const [monthIndex, setMonthIndex] = useState(0);
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
+
+  const m = MONTHS[monthIndex];
+
+  const days = monthDays(m.year, m.month);
+
+  const first = new Date(m.year, m.month, 1).getDay();
+
+  const offset = (first + 6) % 7;
+
+  const cells = useMemo(
+    () =>
+      Array.from(
+        { length: offset + days },
+        (_, i) => (i < offset ? null : i - offset + 1)
+      ),
+    [offset, days]
+  );
+
+  const isReserved = (day: number) => {
+    const value = iso(m.year, m.month, day);
+
+    return reservations.some((reservation) =>
+      overlaps(value, reservation)
+    );
+  };
+
+  const isBlocked = (day: number) => {
+    const value = iso(m.year, m.month, day);
+
+    return blocks.some((block) =>
+      blockedByManual(value, block)
+    );
+  };
+
+  const special = (day: number) => {
+    const value = iso(m.year, m.month, day);
+
+    return SPECIAL_DATES.find((item) => item.date === value);
+  };
+
+  function rangeHasBlockedDates(from: string, to: string) {
+    const firstDate = new Date(`${from}T12:00:00`);
+    const lastDate = new Date(`${to}T12:00:00`);
+
+    const span = Math.round(
+      (lastDate.getTime() - firstDate.getTime()) / 86400000
+    );
+
+    for (let i = 0; i < span; i++) {
+      const date = addDays(from, i);
+
+      const reserved = reservations.some((reservation) =>
+        overlaps(date, reservation)
+      );
+
+      const blocked = blocks.some((block) =>
+        blockedByManual(date, block)
+      );
+
+      if (reserved || blocked) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
-  return <div className="calendar-card">
-    <div className="month-tabs">{MONTHS.map((item,i)=><button key={item.label} className={i===monthIndex?'active':''} onClick={()=>setMonthIndex(i)}>{item.label.replace(' 20','\u00a0')}</button>)}</div>
-    <div className="cal-head"><button aria-label="Mes anterior" disabled={monthIndex===0} onClick={()=>setMonthIndex(Math.max(0,monthIndex-1))}>‹</button><div><strong>{m.label}</strong><small>Seleccioná ingreso y salida</small></div><button aria-label="Mes siguiente" disabled={monthIndex===MONTHS.length-1} onClick={()=>setMonthIndex(Math.min(MONTHS.length-1,monthIndex+1))}>›</button></div>
-    <div className="weekdays">{['L','M','X','J','V','S','D'].map(x=><span key={x}>{x}</span>)}</div>
-    <div className="grid">{cells.map((d,i)=>d===null?<span key={i}/>:<button key={d} aria-label={`${d}/${m.month+1}/${m.year}`} className={`${(isReserved(d)||isBlocked(d))?'blocked ':''}${special(d)?'special ':''}${iso(m.year,m.month,d)===start?'selected ':''}${iso(m.year,m.month,d)===end?'selected end':''}`} onClick={()=>select(d)} disabled={isReserved(d)||isBlocked(d)}><span>{d}</span>{special(d)&&!isReserved(d)&&!isBlocked(d)&&<em>●</em>}</button>)}</div>
-    {start&&<div className="selection-hint">Ingreso: <b>{start}</b>{end?<> · Egreso: <b>{end}</b></>:<> · Elegí ahora la fecha de egreso</>}</div>}
-    <div className="legend"><span><i className="dot available"/>Disponible</span><span><i className="dot pending"/>Pendiente</span><span><i className="dot booked"/>Reservado</span><span><i className="dot special-dot"/>Fecha especial</span></div>
-  </div>
+  function select(dayNumber: number) {
+    const day = iso(m.year, m.month, dayNumber);
+
+    if (isReserved(dayNumber) || isBlocked(dayNumber)) {
+      return;
+    }
+
+    /*
+     * EVENTO
+     * Un evento ocupa solamente el día seleccionado.
+     */
+    if (mode === 'event') {
+      const eventEnd = addDays(day, 1);
+
+      setStart(day);
+      setEnd(eventEnd);
+
+      onPick(day, eventEnd);
+
+      return;
+    }
+
+    /*
+     * ESTADÍA
+     * Primer click = ingreso.
+     * Segundo click = egreso.
+     */
+    if (!start || end) {
+      setStart(day);
+      setEnd('');
+
+      onPick(day, '');
+
+      return;
+    }
+
+    /*
+     * Si el segundo click es anterior o igual
+     * al ingreso, lo tomamos como nuevo ingreso.
+     */
+    if (day <= start) {
+      setStart(day);
+      setEnd('');
+
+      onPick(day, '');
+
+      return;
+    }
+
+    /*
+     * Verificamos que ninguna noche del rango
+     * esté ocupada o bloqueada.
+     */
+    if (rangeHasBlockedDates(start, day)) {
+      return;
+    }
+
+    setEnd(day);
+
+    onPick(start, day);
+  }
+
+  function changeMonth(index: number) {
+    setMonthIndex(index);
+
+    /*
+     * Al cambiar de mes manualmente no borramos
+     * la selección. Esto permite elegir ingreso
+     * en diciembre y egreso en enero/febrero.
+     */
+  }
+
+  return (
+    <div className="calendar-card">
+
+      <div className="calendar-mode">
+        <div className="calendar-mode-title">
+          {mode === 'stay'
+            ? 'Elegí tu ingreso y egreso'
+            : 'Elegí el día del evento'}
+        </div>
+
+        <div className="calendar-mode-help">
+          {mode === 'stay'
+            ? 'Mínimo 2 noches · $100.000 por noche'
+            : 'Un solo día · $200.000 · fechas especiales $250.000'}
+        </div>
+      </div>
+
+      <div className="month-tabs">
+        {MONTHS.map((item, index) => (
+          <button
+            key={item.label}
+            type="button"
+            className={index === monthIndex ? 'active' : ''}
+            onClick={() => changeMonth(index)}
+          >
+            {item.label.replace(' 20', '\u00a0')}
+          </button>
+        ))}
+      </div>
+
+      <div className="cal-head">
+
+        <button
+          type="button"
+          aria-label="Mes anterior"
+          disabled={monthIndex === 0}
+          onClick={() =>
+            setMonthIndex(Math.max(0, monthIndex - 1))
+          }
+        >
+          ‹
+        </button>
+
+        <div>
+          <strong>{m.label}</strong>
+
+          <small>
+            {mode === 'stay'
+              ? 'Seleccioná ingreso y salida'
+              : 'Seleccioná un único día'}
+          </small>
+        </div>
+
+        <button
+          type="button"
+          aria-label="Mes siguiente"
+          disabled={monthIndex === MONTHS.length - 1}
+          onClick={() =>
+            setMonthIndex(
+              Math.min(MONTHS.length - 1, monthIndex + 1)
+            )
+          }
+        >
+          ›
+        </button>
+
+      </div>
+
+      <div className="weekdays">
+        {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day) => (
+          <span key={day}>{day}</span>
+        ))}
+      </div>
+
+      <div className="grid">
+
+        {cells.map((dayNumber, index) => {
+          if (dayNumber === null) {
+            return <span key={`empty-${index}`} />;
+          }
+
+          const value = iso(
+            m.year,
+            m.month,
+            dayNumber
+          );
+
+          const reserved = isReserved(dayNumber);
+          const blocked = isBlocked(dayNumber);
+          const specialDate = special(dayNumber);
+
+          const selectedStart = value === start;
+          const selectedEnd =
+            mode === 'stay' && value === end;
+
+          const selectedEvent =
+            mode === 'event' && value === start;
+
+          const selected =
+            selectedStart ||
+            selectedEnd ||
+            selectedEvent;
+
+          return (
+            <button
+              key={dayNumber}
+              type="button"
+              aria-label={`${dayNumber}/${m.month + 1}/${m.year}`}
+              className={[
+                reserved || blocked ? 'blocked' : '',
+                specialDate ? 'special' : '',
+                selected ? 'selected' : '',
+                selectedEnd ? 'end' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() => select(dayNumber)}
+              disabled={reserved || blocked}
+            >
+              <span>{dayNumber}</span>
+
+              {specialDate &&
+                !reserved &&
+                !blocked && (
+                  <em title={specialDate.label}>●</em>
+                )}
+            </button>
+          );
+        })}
+
+      </div>
+
+      {start && (
+        <div className="selection-hint">
+
+          {mode === 'event' ? (
+            <>
+              Evento: <b>{start}</b>
+            </>
+          ) : (
+            <>
+              Ingreso: <b>{start}</b>
+
+              {end ? (
+                <>
+                  {' · '}
+                  Egreso: <b>{end}</b>
+                </>
+              ) : (
+                <>
+                  {' · '}
+                  Elegí ahora la fecha de egreso
+                </>
+              )}
+            </>
+          )}
+
+        </div>
+      )}
+
+      <div className="legend">
+
+        <span>
+          <i className="dot available" />
+          Disponible
+        </span>
+
+        <span>
+          <i className="dot pending" />
+          Pendiente
+        </span>
+
+        <span>
+          <i className="dot booked" />
+          Reservado
+        </span>
+
+        <span>
+          <i className="dot special-dot" />
+          Fecha especial
+        </span>
+
+      </div>
+
+    </div>
+  );
 }
