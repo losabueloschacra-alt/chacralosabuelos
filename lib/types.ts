@@ -1,4 +1,4 @@
-import { PRICING, SPECIAL_DATES } from './config';
+import { PRICING } from './config';
 
 export type ReservationType = 'weekend' | 'week' | 'event';
 
@@ -44,12 +44,7 @@ function addDays(date: string, days: number) {
 }
 
 /**
- * Cantidad de NOCHES.
- *
- * Ejemplo:
- * 15 → 16 = 1 noche
- * 15 → 17 = 2 noches
- * 15 → 18 = 3 noches
+ * Cantidad de noches/días entre las fechas.
  */
 export function calculateDays(start: string, end: string) {
   if (!start || !end) return 0;
@@ -64,24 +59,13 @@ export function calculateDays(start: string, end: string) {
 }
 
 /**
- * Devuelve las noches ocupadas.
- *
- * Ejemplo:
- * ingreso 15
- * egreso 18
- *
- * noches ocupadas:
- * 15
- * 16
- * 17
- *
- * El día 18 es el día de salida.
+ * Devuelve las fechas ocupadas dentro del rango.
  */
 export function datesInRange(start: string, end: string) {
-  const nights = calculateDays(start, end);
+  const days = calculateDays(start, end);
 
   return Array.from(
-    { length: nights },
+    { length: days },
     (_, i) => addDays(start, i)
   );
 }
@@ -94,6 +78,13 @@ export function isFridayToSunday(start: string, end: string) {
   return startDay === 5 && calculateDays(start, end) === 2;
 }
 
+/**
+ * Fechas especiales SOLO para estadías.
+ *
+ * IMPORTANTE:
+ * Estas tarifas ($350.000 / $400.000) NO se aplican
+ * a eventos.
+ */
 export function getSpecialGroups(start: string, end: string) {
   const selected = new Set<string>(
     datesInRange(start, end)
@@ -110,16 +101,21 @@ export function calculateBreakdown(
   start: string,
   end: string
 ) {
-  const nights = calculateDays(start, end);
+  const days = calculateDays(start, end);
   const selectedDates = datesInRange(start, end);
-  const specialGroups = getSpecialGroups(start, end);
 
   /*
+   * ============================
    * EVENTO
+   * ============================
    *
-   * Un evento ocupa un solo día.
-   * Las fechas especiales de evento cuestan $250.000.
-   * Los demás días cuestan $200.000.
+   * Evento:
+   * - Día normal: $200.000
+   * - Fecha especial de evento: $250.000
+   *
+   * IMPORTANTE:
+   * NO se utilizan las tarifas especiales
+   * de estadía ($350.000 / $400.000).
    */
   if (type === 'event') {
     const specialEventDates = new Set<string>(
@@ -144,21 +140,34 @@ export function calculateBreakdown(
       normalTotal,
       specialTotal,
       total: normalTotal + specialTotal,
-      specialGroups,
-      nights,
+
+      // IMPORTANTE:
+      // Para eventos no devolvemos las tarifas especiales
+      // de estadía.
+      specialGroups: [],
+
+      nights: days,
     };
   }
 
   /*
+   * ============================
    * ESTADÍA
+   * ============================
    *
-   * Siempre $100.000 por noche.
+   * Día/noche normal: $100.000
    *
-   * Las fechas especiales NO se cobran además de la tarifa
-   * normal. Se reemplaza la tarifa de esa noche por la
-   * tarifa especial correspondiente.
+   * Navidad:
+   * $350.000
+   *
+   * Año Nuevo:
+   * $400.000
    */
-  let normalTotal = 0;
+
+  const specialGroups = getSpecialGroups(
+    start,
+    end
+  );
 
   const specialDates = new Set<string>(
     specialGroups.flatMap(
@@ -170,18 +179,9 @@ export function calculateBreakdown(
     (date) => !specialDates.has(date)
   ).length;
 
-  normalTotal =
+  const normalTotal =
     normalNights * PRICING.stayPerNight;
 
-  /*
-   * Cada grupo especial se cobra una sola vez.
-   *
-   * Navidad:
-   * 24/12 o 25/12 → $350.000
-   *
-   * Año Nuevo:
-   * 31/12 o 01/01 → $400.000
-   */
   const specialTotal = specialGroups.reduce(
     (sum, group) => sum + group.price,
     0
@@ -192,7 +192,7 @@ export function calculateBreakdown(
     specialTotal,
     total: normalTotal + specialTotal,
     specialGroups,
-    nights,
+    nights: days,
   };
 }
 
@@ -201,5 +201,9 @@ export function calculateTotal(
   start: string,
   end: string
 ) {
-  return calculateBreakdown(type, start, end).total;
+  return calculateBreakdown(
+    type,
+    start,
+    end
+  ).total;
 }
