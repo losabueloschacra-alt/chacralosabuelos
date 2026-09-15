@@ -4,26 +4,17 @@ import { useMemo, useState, type FormEvent } from 'react';
 import {
   calculateBreakdown,
   calculateDays,
+  isFridayToSunday,
   TYPE_LABELS,
   type ReservationType,
 } from '../lib/types';
 
 import {
   ALIAS,
-  PRICING,
   MAX_PEOPLE,
   RAIN_TEXT,
   WHATSAPP,
 } from '../lib/config';
-
-type ReservationMode = 'stay' | 'event';
-
-type ReservationFormProps = {
-  start: string;
-  end: string;
-  mode: ReservationMode;
-  onDone: () => void;
-};
 
 function money(value: number) {
   return `$${value.toLocaleString('es-AR')}`;
@@ -46,9 +37,23 @@ function addOneDay(value: string) {
 export default function ReservationForm({
   start,
   end,
-  mode,
   onDone,
-}: ReservationFormProps) {
+}: {
+  start: string;
+  end: string;
+  onDone: () => void;
+}) {
+  const [eventMode, setEventMode] = useState(false);
+
+  const effectiveEnd = eventMode ? addOneDay(start) : end;
+
+  const days = calculateDays(start, effectiveEnd);
+
+  const autoType: ReservationType = useMemo(
+    () => (isFridayToSunday(start, end) ? 'weekend' : 'week'),
+    [start, end, eventMode]
+  );
+
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -61,117 +66,69 @@ export default function ReservationForm({
   const [message, setMessage] = useState('');
   const [payment, setPayment] = useState(false);
 
-  /*
-   * EVENTO
-   *
-   * Siempre ocupa un solo día.
-   */
-  const effectiveEnd = mode === 'event'
-    ? addOneDay(start)
-    : end;
+  const type = eventMode ? 'event' : autoType;
 
-  const days = calculateDays(start, effectiveEnd);
-
-  /*
-   * Tipo que se guarda en Google Sheets / API.
-   *
-   * Estadía:
-   * - weekend si existiera esa lógica
-   * - week para una estadía normal
-   *
-   * Como ahora el usuario elige explícitamente el modo,
-   * nunca se detecta automáticamente por día de la semana.
-   */
-  const type: ReservationType =
-    mode === 'event' ? 'event' : 'week';
-
-  /*
-   * Cálculo de precio.
-   *
-   * Para EVENTO:
-   * $250.000 por día, independientemente de que sea
-   * una fecha especial.
-   *
-   * Para ESTADÍA:
-   * se usa la lógica de calculateBreakdown:
-   * $100.000 por noche normalmente,
-   * $350.000 Navidad,
-   * $400.000 Año Nuevo.
-   */
-  const breakdown = useMemo(() => {
-    if (mode === 'event') {
-      return {
-        normalTotal: 0,
-        specialTotal: PRICING.eventPerDay,
-        total: PRICING.eventPerDay,
-        specialGroups: [],
-        nights: 1,
-      };
-    }
-
-    return calculateBreakdown(
-      'week',
-      start,
-      effectiveEnd
-    );
-  }, [mode, start, effectiveEnd]);
+  const breakdown = calculateBreakdown(
+    type,
+    start,
+    effectiveEnd
+  );
 
   const total = breakdown.total;
-
-  const deposit =
-    total * PRICING.depositPercent;
+  const deposit = total * 0.5;
 
   const update = (
-    key: keyof typeof form,
-    value: string
+    k: keyof typeof form,
+    v: string
   ) => {
-    setForm((current) => ({
-      ...current,
-      [key]: value,
+    setForm((f) => ({
+      ...f,
+      [k]: v,
     }));
   };
 
+  function toggleEvent() {
+    setEventMode((v) => !v);
+    setMessage('');
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
-
     setMessage('');
 
     if (!start) {
-      setMessage('Elegí una fecha.');
-      return;
+      return setMessage('Elegí una fecha.');
     }
 
-    if (mode === 'stay' && !end) {
-      setMessage('Elegí la fecha de egreso.');
-      return;
+    if (!eventMode && !end) {
+      return setMessage('Elegí la fecha de egreso.');
     }
 
     if (days < 1) {
-      setMessage('Elegí un rango de fechas válido.');
-      return;
+      return setMessage(
+        'Elegí un rango de fechas válido.'
+      );
     }
 
-    if (mode === 'stay' && days < 2) {
-      setMessage(
-        'La estadía tiene un mínimo de 2 noches.'
+    if (!eventMode && days < 2) {
+      return setMessage(
+        'La estadía tiene un mínimo de 2 días.'
       );
-      return;
     }
 
     const people = Number(form.people);
 
     if (
-      mode === 'stay' &&
+      !eventMode &&
       (
         !Number.isInteger(people) ||
         people < 1 ||
         people > MAX_PEOPLE
       )
     ) {
-      setMessage(
+      return setMessage(
         `La capacidad máxima de la estadía es de ${MAX_PEOPLE} personas.`
       );
-      return;
     }
 
     if (
@@ -179,76 +136,46 @@ export default function ReservationForm({
       !form.phone.trim() ||
       !form.email.trim()
     ) {
-      setMessage(
+      return setMessage(
         'Completá nombre, teléfono y email.'
       );
-      return;
     }
 
     setLoading(true);
 
     try {
-      const reservationEnd =
-        mode === 'event'
-          ? effectiveEnd
-          : end;
-
-      const reservationType: ReservationType =
-        mode === 'event'
-          ? 'event'
-          : 'week';
-
-      const res = await fetch(
-        '/api/reservas',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            action: 'create',
-
-            type: reservationType,
-
-            start,
-
-            end: reservationEnd,
-
-            people:
-              mode === 'event'
-                ? 0
-                : people,
-
-            name: form.name.trim(),
-
-            phone: form.phone.trim(),
-
-            email: form.email.trim(),
-
-            notes: form.notes.trim(),
-
-            total,
-
-            deposit,
-
-            createdAt:
-              new Date().toISOString(),
-          }),
-        }
-      );
+      const res = await fetch('/api/reservas', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'create',
+          type,
+          start,
+          end: eventMode ? effectiveEnd : end,
+          people: eventMode ? 0 : people,
+          name: form.name.trim(),
+          phone: form.phone.trim(),
+          email: form.email.trim(),
+          notes: form.notes.trim(),
+          total,
+          deposit,
+          createdAt: new Date().toISOString(),
+        }),
+      });
 
       const data = await res.json();
 
       if (!res.ok || !data.ok) {
         setMessage(
           data.error ||
-            'No pudimos registrar la solicitud.'
+          'No pudimos registrar la solicitud.'
         );
         return;
       }
 
       setPayment(true);
-
       onDone();
     } catch {
       setMessage(
@@ -259,9 +186,6 @@ export default function ReservationForm({
     }
   }
 
-  /*
-   * PANTALLA DE PAGO
-   */
   if (payment) {
     const waText = encodeURIComponent(
       `Hola, hice una reserva en Los Abuelos Chacra y te envío el comprobante.
@@ -292,34 +216,26 @@ Adjunto el comprobante.`
         <p className="payment-lead">
           Tu reserva quedó{' '}
           <b>pendiente de confirmación</b>.
-          Para confirmarla, aboná el 50%
-          mediante transferencia.
+          Para confirmarla, aboná el 50% mediante
+          transferencia.
         </p>
 
         <div className="summary">
-          <h4>
-            Resumen de reserva
-          </h4>
+          <h4>Resumen de reserva</h4>
 
           <div>
             <span>Tipo</span>
-            <b>
-              {TYPE_LABELS[type]}
-            </b>
+            <b>{TYPE_LABELS[type]}</b>
           </div>
 
           <div>
             <span>Ingreso</span>
-            <b>
-              {formatDate(start)}
-            </b>
+            <b>{formatDate(start)}</b>
           </div>
 
           <div>
             <span>Egreso</span>
-            <b>
-              {formatDate(effectiveEnd)}
-            </b>
+            <b>{formatDate(effectiveEnd)}</b>
           </div>
 
           <div>
@@ -330,7 +246,7 @@ Adjunto el comprobante.`
           <div>
             <span>Personas</span>
             <b>
-              {mode === 'event'
+              {eventMode
                 ? 'Modalidad masiva'
                 : form.people}
             </b>
@@ -338,53 +254,40 @@ Adjunto el comprobante.`
 
           <div>
             <span>Total</span>
-            <b>
-              {money(total)}
-            </b>
+            <b>{money(total)}</b>
           </div>
 
           <div>
             <span>Seña 50%</span>
-            <b>
-              {money(deposit)}
-            </b>
+            <b>{money(deposit)}</b>
           </div>
 
           <div>
             <span>Saldo</span>
-            <b>
-              {money(total - deposit)}
-            </b>
+            <b>{money(total - deposit)}</b>
           </div>
         </div>
 
         <div className="alias-box">
-          <small>
-            ABONAR RESERVA
-          </small>
+          <small>ABONAR RESERVA</small>
 
           <p>
             Transferí el 50% del valor total a:
           </p>
 
           <strong>
-            {ALIAS}
+            Alias: Evelyn Maroli
           </strong>
 
           <b className="alias-owner">
-            Cuenta Mercado Pago
+            A nombre de: Evelyn Talia Maroli.
           </b>
 
           <button
             type="button"
             onClick={() => {
-              navigator.clipboard?.writeText(
-                ALIAS
-              );
-
-              setMessage(
-                'Alias copiado'
-              );
+              navigator.clipboard?.writeText(ALIAS);
+              setMessage('Alias copiado');
             }}
           >
             COPIAR ALIAS
@@ -398,9 +301,10 @@ Adjunto el comprobante.`
         </div>
 
         <p className="payment-lead">
-          Una vez realizada la transferencia,
-          enviá el comprobante por WhatsApp
-          para confirmar la reserva.
+          Una vez realizada la transferencia, enviá
+          el comprobante por WhatsApp al{' '}
+          <b>11 60 11 55 83</b> para confirmar la
+          reserva.
         </p>
 
         <a
@@ -415,43 +319,56 @@ Adjunto el comprobante.`
     );
   }
 
-  /*
-   * FORMULARIO
-   */
   return (
     <form
       className="form"
       onSubmit={submit}
     >
       <div className="selected-box">
-        <b>
-          {formatDate(start)}
-        </b>
-
-        {' → '}
-
-        <b>
-          {formatDate(effectiveEnd)}
-        </b>
+        <b>{formatDate(start)}</b> →{' '}
+        <b>{formatDate(effectiveEnd)}</b>
 
         <span>
-          {mode === 'event'
-            ? '1 día · Modalidad masiva'
-            : `${days} noches · Hasta ${MAX_PEOPLE} personas`}
+          {days} días ·{' '}
+          {eventMode
+            ? 'Modalidad masiva · 1 día'
+            : end
+            ? `Hasta ${MAX_PEOPLE} personas · mínimo 2 días`
+            : 'Elegí la fecha de egreso'}
         </span>
       </div>
 
+      <button
+        type="button"
+        className={`event-toggle ${
+          eventMode ? 'active' : ''
+        }`}
+        onClick={toggleEvent}
+      >
+        {eventMode
+          ? '✓ EVENTO SELECCIONADO'
+          : 'QUIERO RESERVAR PARA UN EVENTO'}
+      </button>
+
       <div className="type-note">
         <b>
-          {mode === 'event'
+          {eventMode
             ? 'EVENTO'
-            : 'ESTADÍA'}
+            : 'TIPO DE ESTADÍA'}
         </b>
 
         <span>
-          {mode === 'event'
-            ? `Modalidad masiva · ${money(PRICING.eventPerDay)} por día`
-            : `Estadía · ${money(PRICING.stayPerNight)} por noche`}
+          {eventMode
+            ? breakdown.specialGroups.length
+              ? 'Modalidad masiva · $250.000 por día en fecha especial'
+              : 'Modalidad masiva · $200.000 por día'
+            : end
+            ? 'Detectado automáticamente: ' +
+              TYPE_LABELS[autoType] +
+              (autoType === 'weekend'
+                ? ' · $280.000'
+                : ' · $100.000 por día')
+            : 'Primero elegí la fecha de egreso'}
         </span>
       </div>
 
@@ -463,10 +380,7 @@ Adjunto el comprobante.`
             required
             value={form.name}
             onChange={(e) =>
-              update(
-                'name',
-                e.target.value
-              )
+              update('name', e.target.value)
             }
             autoComplete="name"
           />
@@ -479,10 +393,7 @@ Adjunto el comprobante.`
             required
             value={form.phone}
             onChange={(e) =>
-              update(
-                'phone',
-                e.target.value
-              )
+              update('phone', e.target.value)
             }
             autoComplete="tel"
           />
@@ -498,16 +409,13 @@ Adjunto el comprobante.`
             type="email"
             value={form.email}
             onChange={(e) =>
-              update(
-                'email',
-                e.target.value
-              )
+              update('email', e.target.value)
             }
             autoComplete="email"
           />
         </label>
 
-        {mode === 'event' ? (
+        {eventMode ? (
           <label>
             Personas
 
@@ -544,10 +452,7 @@ Adjunto el comprobante.`
           rows={3}
           value={form.notes}
           onChange={(e) =>
-            update(
-              'notes',
-              e.target.value
-            )
+            update('notes', e.target.value)
           }
           placeholder="Contanos si necesitás algo especial…"
         />
@@ -556,44 +461,34 @@ Adjunto el comprobante.`
       <div className="price">
         <div>
           <small>
-            {mode === 'event'
-              ? 'Precio del evento'
-              : breakdown.specialGroups.length
-                ? 'Tarifa especial'
-                : 'Precio'}
+            {breakdown.specialGroups.length
+              ? 'Tarifa normal + especial'
+              : 'Precio'}
           </small>
 
-          <b>
-            {money(total)}
-          </b>
+          <b>{money(total)}</b>
         </div>
 
         <small>
-          {mode === 'stay' &&
-          breakdown.specialGroups.length
+          {breakdown.specialGroups.length
             ? `${breakdown.specialGroups
                 .map(
                   (x) =>
-                    `${x.label}: ${money(
-                      x.price
-                    )}`
+                    `${x.label}: ${money(x.price)}`
                 )
                 .join(' · ')} · `
             : ''}
-
-          Seña 50%:{' '}
-          {money(deposit)}
+          Seña 50%: {money(deposit)}
         </small>
       </div>
 
-      {mode === 'stay' &&
-        breakdown.specialGroups.length > 0 && (
-          <div className="special-notice">
-            🔴 Fecha especial: se aplica
-            automáticamente la tarifa de
-            Navidad o Año Nuevo.
-          </div>
-        )}
+      {breakdown.specialGroups.length > 0 && (
+        <div className="special-notice">
+          🔴 Fecha especial: los eventos en
+          24/12, 25/12, 31/12 y 01/01 tienen tarifa
+          de $250.000 por día.
+        </div>
+      )}
 
       <p className="rain">
         ☁ {RAIN_TEXT}
