@@ -27,24 +27,17 @@ export default function Home() {
   const [blocks, setBlocks] =
     useState<Block[]>([]);
 
-  /*
-   * MODALIDAD ELEGIDA POR EL USUARIO
-   *
-   * stay  = Estadía
-   * event = Evento
-   *
-   * IMPORTANTE:
-   * La modalidad NO se determina por el día de la semana.
-   */
+  const [selection, setSelection] =
+    useState({
+      start: '',
+      end: '',
+    });
+
   const [mode, setMode] =
     useState<ReservationMode>('stay');
 
-  const [selection, setSelection] = useState({
-    start: '',
-    end: '',
-  });
-
-  const [error, setError] = useState('');
+  const [error, setError] =
+    useState('');
 
   async function refresh() {
     try {
@@ -58,7 +51,10 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok || !data.ok) {
-        throw new Error(data.error);
+        throw new Error(
+          data.error ||
+            'No se pudo cargar la disponibilidad.'
+        );
       }
 
       setReservations(
@@ -68,6 +64,8 @@ export default function Home() {
       setBlocks(
         data.blocks || []
       );
+
+      setError('');
     } catch (e) {
       setError(
         e instanceof Error
@@ -81,232 +79,377 @@ export default function Home() {
     refresh();
   }, []);
 
-  /*
-   * Cuando el usuario cambia entre ESTADÍA y EVENTO,
-   * borramos la selección anterior.
-   *
-   * Esto evita mezclar:
-   * - un ingreso/egreso de estadía
-   * con
-   * - un día de evento.
-   */
   function changeMode(
-    newMode: ReservationMode
+    nextMode: ReservationMode
   ) {
-    setMode(newMode);
+    setMode(nextMode);
 
+    // Al cambiar entre ESTADÍA y EVENTO
+    // empezamos una selección nueva.
     setSelection({
       start: '',
       end: '',
     });
   }
 
-  /*
-   * Cuando Calendar selecciona fechas,
-   * simplemente guardamos lo que eligió.
-   *
-   * Calendar ya sabe si debe comportarse como
-   * ESTADÍA o como EVENTO gracias a "mode".
-   */
-  function handlePick(
-    start: string,
-    end: string
-  ) {
-    setSelection({
-      start,
-      end,
-    });
-  }
-
   return (
     <main>
-      <header className="hero">
-        <div className="brand">
-          <Image
-            src="/logo.png"
-            alt="Los Abuelos Chacra"
-            width={180}
-            height={180}
-            priority
-          />
+
+      {/* =========================
+          HEADER
+      ========================== */}
+
+      <header className="site-header">
+        <div className="header-inner">
+
+          <a
+            href="#inicio"
+            className="site-logo"
+          >
+            <Image
+              src="/logo.png"
+              alt="Chacra Los Abuelos"
+              width={155}
+              height={155}
+              priority
+            />
+          </a>
+
+          <nav className="main-nav">
+            <a
+              href="#inicio"
+              className="active"
+            >
+              Inicio
+            </a>
+
+            <a href="#la-chacra">
+              La chacra
+            </a>
+
+            <a href="#precios">
+              Precios
+            </a>
+
+            <a href="#ubicacion">
+              Ubicación
+            </a>
+
+            <a href="#contacto">
+              Contacto
+            </a>
+          </nav>
+
+          <a
+            className="whatsapp-button"
+            href={`https://wa.me/${WHATSAPP}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span>◉</span>
+            Escribinos por WhatsApp
+          </a>
+
         </div>
-
-        <div className="eyebrow">
-          ESCAPADA DE FIN DE SEMANA
-        </div>
-
-        <h1>
-          LOS ABUELOS CHACRA
-        </h1>
-
-        <p>
-          Reservá tu estadía y disfrutá
-          de la tranquilidad del campo.
-        </p>
-
-        <a
-          className="hero-cta"
-          href="#reservar"
-        >
-          CONSULTAR DISPONIBILIDAD
-        </a>
-
-        <div className="hero-line" />
       </header>
 
+
+      {/* =========================
+          HERO
+      ========================== */}
+
       <section
-        className="booking"
-        id="reservar"
+        className="hero-image-section"
+        id="inicio"
       >
-        <div className="section-title">
-          <span>01</span>
 
-          <div>
-            <h2>
-              Elegí qué querés reservar
-            </h2>
-
-            <p>
-              Primero elegí la modalidad y
-              después seleccioná la fecha.
-            </p>
-          </div>
-        </div>
-
-        {error && (
-          <div className="message">
-            {error}
-          </div>
-        )}
-
-        {/*
-         * ============================
-         * SELECTOR DE MODALIDAD
-         * ============================
-         */}
-        <div
-          className="reservation-mode"
-          aria-label="Tipo de reserva"
-        >
-          <button
-            type="button"
-            className={
-              mode === 'stay'
-                ? 'active'
-                : ''
-            }
-            onClick={() =>
-              changeMode('stay')
-            }
-          >
-            <strong>
-              ESTADÍA
-            </strong>
-
-            <span>
-              Quedarse a dormir
-            </span>
-
-            <small>
-              {money(PRICING.stayPerNight)}
-              {' '}por noche
-            </small>
-          </button>
-
-          <button
-            type="button"
-            className={
-              mode === 'event'
-                ? 'active'
-                : ''
-            }
-            onClick={() =>
-              changeMode('event')
-            }
-          >
-            <strong>
-              EVENTO
-            </strong>
-
-            <span>
-              Evento de un día
-            </span>
-
-            <small>
-              {money(PRICING.eventPerDay)}
-              {' '}por día
-            </small>
-          </button>
-        </div>
-
-        {/*
-         * Texto explicativo según la modalidad.
-         */}
-        <div className="capacity-note">
-          {mode === 'stay' ? (
-            <>
-              <b>
-                ESTADÍA
-              </b>
-
-              <span>
-                Elegí una fecha de ingreso y
-                una fecha de egreso.
-                La estadía tiene un mínimo de
-                2 noches y una capacidad máxima
-                de {PRICING.maxPeople} personas.
-              </span>
-            </>
-          ) : (
-            <>
-              <b>
-                EVENTO
-              </b>
-
-              <span>
-                Elegí un único día.
-                Los eventos tienen una tarifa
-                de {money(PRICING.eventPerDay)}
-                {' '}por día y
-                {` ${money(PRICING.eventSpecialPerDay)}`}
-                {' '}en fechas especiales.
-              </span>
-            </>
-          )}
-        </div>
-
-        {/*
-         * ============================
-         * CALENDARIO
-         * ============================
-         *
-         * AHORA LE PASAMOS "mode".
-         *
-         * Esto es justamente lo que faltaba
-         * y provocaba el error de TypeScript.
-         */}
-        <Calendar
-          reservations={reservations}
-          blocks={blocks}
-          mode={mode}
-          onPick={handlePick}
+        <Image
+          src="/hero-chacra.png"
+          alt="Atardecer en Chacra Los Abuelos"
+          fill
+          priority
+          className="hero-image"
+          sizes="100vw"
         />
 
-        {/*
-         * ============================
-         * TARIFAS
-         * ============================
-         *
-         * La estadía es $100.000 por noche
-         * cualquier día.
-         *
-         * Ya NO mostramos una diferencia
-         * artificial entre semana y fin de semana.
-         */}
-        <section
-          className="rates rates-inline"
-          aria-label="Tarifas"
-        >
+        <div className="hero-overlay" />
+
+        <div className="hero-content">
+
+          <div className="hero-eyebrow">
+            BIENVENIDOS A
+          </div>
+
+          <h1>
+            Chacra
+            <br />
+            Los Abuelos
+          </h1>
+
+          <p>
+            Un lugar tranquilo en el campo,
+            <br />
+            para disfrutar, descansar y compartir.
+          </p>
+
+          <a
+            className="hero-availability"
+            href="#reservar"
+          >
+            <span>▣</span>
+            Consultar disponibilidad
+            <span>→</span>
+          </a>
+
+        </div>
+
+      </section>
+
+
+      {/* =========================
+          RESERVA
+      ========================== */}
+
+      <section
+        className="reservation-section"
+        id="reservar"
+      >
+
+        <div className="reservation-intro">
+
+          <div className="reservation-eyebrow">
+            RESERVÁ TU ESTADÍA
+          </div>
+
+          <h2>
+            Elegí la opción que
+            <br />
+            mejor se adapte a vos
+          </h2>
+
+          <p>
+            Seleccioná las fechas y completá el
+            formulario. Te vamos a confirmar la
+            disponibilidad y los detalles de tu reserva.
+          </p>
+
+          <div className="decorative-line">
+            <span>♧</span>
+            <i />
+          </div>
+
+        </div>
+
+
+        {/* =========================
+            TIPO DE RESERVA
+        ========================== */}
+
+        <div className="reservation-type-card">
+
+          <div
+            className="reservation-toggle"
+            role="group"
+            aria-label="Tipo de reserva"
+          >
+
+            <button
+              type="button"
+              className={
+                mode === 'stay'
+                  ? 'active'
+                  : ''
+              }
+              onClick={() =>
+                changeMode('stay')
+              }
+            >
+              <span>▱</span>
+              ESTADÍA
+            </button>
+
+            <button
+              type="button"
+              className={
+                mode === 'event'
+                  ? 'active'
+                  : ''
+              }
+              onClick={() =>
+                changeMode('event')
+              }
+            >
+              <span>▣</span>
+              EVENTO
+            </button>
+
+          </div>
+
+
+          <div className="price-options">
+
+            <div className="price-option">
+
+              <div className="price-icon">
+                ▱
+              </div>
+
+              <h3>
+                Estadía
+              </h3>
+
+              <span>
+                (por noche)
+              </span>
+
+              <strong>
+                {money(PRICING.stayPerNight)}
+              </strong>
+
+              <small>
+                Capacidad: {PRICING.maxPeople} personas
+              </small>
+
+            </div>
+
+
+            <div className="price-option">
+
+              <div className="price-icon">
+                ▣
+              </div>
+
+              <h3>
+                Evento
+              </h3>
+
+              <span>
+                (día completo)
+              </span>
+
+              <strong>
+                {money(PRICING.eventPerDay)}
+              </strong>
+
+              <small>
+                Modalidad masiva
+              </small>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        {/* =========================
+            CALENDARIO
+        ========================== */}
+
+        <div className="reservation-calendar">
+
+          <div className="calendar-section-title">
+            <span>03</span>
+            <div>
+              <h3>
+                Elegí tus fechas
+              </h3>
+
+              <p>
+                {mode === 'stay'
+                  ? 'Seleccioná ingreso y egreso'
+                  : 'Seleccioná el día del evento'}
+              </p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="message">
+              {error}
+            </div>
+          )}
+
+          <Calendar
+            reservations={reservations}
+            blocks={blocks}
+            mode={mode}
+            onPick={(start, end) =>
+              setSelection({
+                start,
+                end,
+              })
+            }
+          />
+
+        </div>
+
+
+        {/* =========================
+            FORMULARIO
+        ========================== */}
+
+        <div className="reservation-form-column">
+
+          {selection.start ? (
+            <ReservationForm
+              start={selection.start}
+              end={selection.end}
+              mode={mode}
+              onDone={refresh}
+            />
+          ) : (
+            <div className="form-placeholder">
+
+              <div className="reservation-eyebrow">
+                COMPLETÁ TUS DATOS
+              </div>
+
+              <h3>
+                Tu reserva
+              </h3>
+
+              <p>
+                Elegí primero la fecha en el
+                calendario para continuar con
+                tus datos.
+              </p>
+
+            </div>
+          )}
+
+        </div>
+
+      </section>
+
+
+      {/* =========================
+          PRECIOS
+      ========================== */}
+
+      <section
+        className="prices-section"
+        id="precios"
+      >
+
+        <div className="prices-title">
+          <span>04</span>
+
+          <div>
+            <div className="reservation-eyebrow">
+              TARIFAS
+            </div>
+
+            <h2>
+              Precios claros,
+              <br />
+              sin sorpresas
+            </h2>
+          </div>
+        </div>
+
+
+        <div className="rates">
+
           <div>
             <small>
               ESTADÍA
@@ -321,9 +464,10 @@ export default function Home() {
             </span>
           </div>
 
+
           <div>
             <small>
-              EVENTO
+              EVENTO NORMAL
             </small>
 
             <strong>
@@ -331,107 +475,176 @@ export default function Home() {
             </strong>
 
             <span>
-              Por día · tarifa normal
+              Por día · cualquier día
             </span>
           </div>
 
+
           <div>
             <small>
-              EVENTO · ESPECIAL
+              EVENTO FECHA ESPECIAL
             </small>
 
             <strong>
-              {money(
-                PRICING.eventSpecialPerDay
-              )}
+              {money(PRICING.eventSpecialPerDay)}
             </strong>
 
             <span>
               Por día · fechas especiales
             </span>
           </div>
-        </section>
 
-        {/*
-         * Formulario:
-         * también recibe "mode".
-         *
-         * Si es EVENTO:
-         * - un solo día
-         * - precio de evento
-         *
-         * Si es ESTADÍA:
-         * - ingreso + egreso
-         * - precio de estadía
-         */}
-        {selection.start && (
-          <ReservationForm
-            start={selection.start}
-            end={selection.end}
-            mode={mode}
-            onDone={refresh}
-          />
-        )}
+        </div>
+
       </section>
 
-      <section className="info">
-        <div>
-          <b>
-            Reserva
-          </b>
 
-          <span>
-            La solicitud queda pendiente y
-            se confirma con una seña del{' '}
-            {PRICING.depositPercent * 100}%.
-          </span>
-        </div>
+      {/* =========================
+          INFORMACIÓN
+      ========================== */}
 
-        <div>
-          <b>
-            Clima
-          </b>
+      <section className="info-section">
 
-          <span>
-            {RAIN_TEXT}
-          </span>
-        </div>
-
-        <div>
-          <b>
-            Pago
-          </b>
-
-          <span>
-            Después de solicitar la reserva
-            recibirás el alias para realizar
-            la seña y el enlace para enviar
-            el comprobante.
-          </span>
-        </div>
-      </section>
-
-      <footer>
-        <span>
-          LOS ABUELOS · CHACRA
-        </span>
-
-        <a
-          href={`https://wa.me/${WHATSAPP}`}
-          target="_blank"
-          rel="noreferrer"
+        <div
+          className="info-item"
+          id="la-chacra"
         >
-          WhatsApp
-        </a>
+          <div className="info-icon">
+            ☁
+          </div>
 
-        <a href="#reservar">
-          Consultar disponibilidad
-        </a>
+          <h3>
+            ¿Lluvia?
+          </h3>
+
+          <p>
+            {RAIN_TEXT}
+          </p>
+        </div>
+
+
+        <div className="info-item">
+
+          <div className="info-icon">
+            ◉
+          </div>
+
+          <h3>
+            Seña y pago
+          </h3>
+
+          <p>
+            Para confirmar la reserva se solicita
+            una seña del{' '}
+            {PRICING.depositPercent * 100}%.
+            El resto se abona al llegar.
+          </p>
+
+        </div>
+
+
+        <div
+          className="info-item"
+          id="ubicacion"
+        >
+
+          <div className="info-icon">
+            ♧
+          </div>
+
+          <h3>
+            Ubicación
+          </h3>
+
+          <p>
+            La dirección se comparte una vez
+            confirmada la reserva.
+          </p>
+
+        </div>
+
+
+        <div
+          className="info-item"
+          id="contacto"
+        >
+
+          <div className="info-icon">
+            ◌
+          </div>
+
+          <h3>
+            ¿Dudas o consultas?
+          </h3>
+
+          <p>
+            Escribinos por WhatsApp
+            y te ayudamos.
+          </p>
+
+        </div>
+
+      </section>
+
+
+      {/* =========================
+          FOOTER
+      ========================== */}
+
+      <footer className="site-footer">
+
+        <div className="footer-logo">
+
+          <Image
+            src="/logo.png"
+            alt="Chacra Los Abuelos"
+            width={120}
+            height={120}
+          />
+
+        </div>
+
+
+        <nav className="footer-nav">
+
+          <a href="#inicio">
+            Inicio
+          </a>
+
+          <a href="#la-chacra">
+            La chacra
+          </a>
+
+          <a href="#precios">
+            Precios
+          </a>
+
+          <a href="#ubicacion">
+            Ubicación
+          </a>
+
+          <a href="#contacto">
+            Contacto
+          </a>
+
+        </nav>
+
+
+        <div className="footer-social">
+          ◎
+        </div>
+
 
         <small>
-          ALIAS: {ALIAS} · Cuenta Mercado Pago
+          © 2026 Chacra Los Abuelos
         </small>
+
+        <div className="footer-alias">
+          ALIAS: {ALIAS}
+        </div>
+
       </footer>
+
     </main>
   );
 }
