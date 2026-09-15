@@ -68,6 +68,7 @@ export default function Home() {
 
   function changeMode(newMode: ReservationMode) {
     setMode(newMode);
+
     setSelection({
       start: '',
       end: '',
@@ -535,6 +536,7 @@ export default function Home() {
                 <ReservationForm
                   start={selection.start}
                   end={selection.end}
+                  mode={mode}
                   onDone={handleDone}
                 />
               </div>
@@ -834,7 +836,6 @@ export default function Home() {
           background: var(--chacra-cream);
         }
 
-
         /* HEADER */
 
         .topbar {
@@ -907,7 +908,6 @@ export default function Home() {
         .whatsapp-icon {
           font-size: 17px;
         }
-
 
         /* HERO */
 
@@ -1024,7 +1024,6 @@ export default function Home() {
           white-space: nowrap;
         }
 
-
         /* INTRO */
 
         .intro-new {
@@ -1075,7 +1074,6 @@ export default function Home() {
           line-height: 1.75;
         }
 
-
         /* BOOKING */
 
         .booking-new {
@@ -1107,7 +1105,6 @@ export default function Home() {
           font-size: 14px;
           line-height: 1.7;
         }
-
 
         /* MODE SELECTOR */
 
@@ -1180,7 +1177,6 @@ export default function Home() {
           font-weight: 400;
         }
 
-
         /* PRICE CARDS */
 
         .price-overview {
@@ -1252,7 +1248,6 @@ export default function Home() {
         .price-card.special {
           background: #f1f4ec;
         }
-
 
         /* CALENDAR */
 
@@ -1332,7 +1327,6 @@ export default function Home() {
           padding-top: 28px;
         }
 
-
         /* INFO RESERVA */
 
         .reservation-info-grid {
@@ -1375,7 +1369,6 @@ export default function Home() {
           line-height: 1.65;
         }
 
-
         /* FORM */
 
         .form-area {
@@ -1409,7 +1402,6 @@ export default function Home() {
           border-radius: 18px;
           background: white;
         }
-
 
         /* INFORMATION */
 
@@ -1483,7 +1475,6 @@ export default function Home() {
           line-height: 1.65;
         }
 
-
         /* FINAL CTA */
 
         .final-cta {
@@ -1508,7 +1499,6 @@ export default function Home() {
           font-size: 14px;
           line-height: 1.7;
         }
-
 
         /* FOOTER */
 
@@ -1591,10 +1581,7 @@ export default function Home() {
           letter-spacing: 1.5px;
         }
 
-
-        /* =========================
-           TABLET
-        ========================= */
+        /* TABLET */
 
         @media (max-width: 900px) {
 
@@ -1640,10 +1627,7 @@ export default function Home() {
 
         }
 
-
-        /* =========================
-           MOBILE
-        ========================= */
+        /* MOBILE */
 
         @media (max-width: 650px) {
 
@@ -1670,7 +1654,6 @@ export default function Home() {
           .whatsapp-icon {
             font-size: 14px;
           }
-
 
           /* HERO MOBILE */
 
@@ -1732,7 +1715,6 @@ export default function Home() {
             letter-spacing: 2px;
           }
 
-
           /* INTRO MOBILE */
 
           .intro-new {
@@ -1748,7 +1730,6 @@ export default function Home() {
             font-size: 13px;
             line-height: 1.7;
           }
-
 
           /* BOOKING MOBILE */
 
@@ -1770,7 +1751,6 @@ export default function Home() {
             font-size: 13px;
           }
 
-
           .mode-selector {
             grid-template-columns: 1fr;
             gap: 9px;
@@ -1785,7 +1765,6 @@ export default function Home() {
           .mode-button small {
             font-size: 11px;
           }
-
 
           /* PRICE MOBILE */
 
@@ -1811,7 +1790,6 @@ export default function Home() {
           .price-card h3 {
             font-size: 27px;
           }
-
 
           /* CALENDAR MOBILE */
 
@@ -1845,7 +1823,6 @@ export default function Home() {
             overflow-x: hidden;
           }
 
-
           /* RESERVATION INFO MOBILE */
 
           .reservation-info-grid {
@@ -1860,7 +1837,6 @@ export default function Home() {
             border-left: 0;
             border-top: 1px solid var(--chacra-line);
           }
-
 
           /* FORM MOBILE */
 
@@ -1878,7 +1854,6 @@ export default function Home() {
             padding: 13px;
             border-radius: 14px;
           }
-
 
           /* INFORMATION MOBILE */
 
@@ -1913,7 +1888,6 @@ export default function Home() {
             padding-top: 22px;
           }
 
-
           /* CTA MOBILE */
 
           .final-cta {
@@ -1927,7 +1901,6 @@ export default function Home() {
           .final-cta .primary-button {
             width: min(100%, 340px);
           }
-
 
           /* FOOTER MOBILE */
 
