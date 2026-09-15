@@ -1,3 +1,4 @@
+```tsx
 'use client';
 
 import { useMemo, useState, type FormEvent } from 'react';
@@ -41,6 +42,7 @@ export default function ReservationForm({
 }: {
   start: string;
   end: string;
+  mode?: string;
   onDone: () => void;
 }) {
   const [eventMode, setEventMode] = useState(false);
@@ -511,3 +513,4 @@ Adjunto el comprobante.`
     </form>
   );
 }
+```
