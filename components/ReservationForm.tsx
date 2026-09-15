@@ -1,4 +1,3 @@
-```tsx
 'use client';
 
 import { useMemo, useState, type FormEvent } from 'react';
@@ -38,6 +37,7 @@ function addOneDay(value: string) {
 export default function ReservationForm({
   start,
   end,
+  mode,
   onDone,
 }: {
   start: string;
@@ -513,4 +513,3 @@ Adjunto el comprobante.`
     </form>
   );
 }
-```
