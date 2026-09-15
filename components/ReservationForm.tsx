@@ -356,7 +356,7 @@ Adjunto el comprobante.`
 
         <span>
           {isEvent
-            ? breakdown.specialEventDates?.length
+            ? breakdown.specialTotal > 0
               ? 'Modalidad masiva · $250.000 por día en fecha especial'
               : 'Modalidad masiva · $200.000 por día'
             : end
@@ -452,17 +452,22 @@ Adjunto el comprobante.`
       <div className="price">
         <div>
           <small>
-            {breakdown.specialGroups.length
+            {isEvent
+              ? breakdown.specialTotal > 0
+                ? 'Fecha especial'
+                : 'Precio del evento'
+              : breakdown.specialGroups.length
               ? 'Tarifa normal + especial'
               : 'Precio'}
           </small>
+
           <b>{money(total)}</b>
         </div>
 
         <small>
           {isEvent
             ? breakdown.specialTotal > 0
-              ? 'Fecha especial · '
+              ? 'Tarifa especial · '
               : ''
             : breakdown.specialGroups.length
             ? `${breakdown.specialGroups
@@ -476,13 +481,14 @@ Adjunto el comprobante.`
         </small>
       </div>
 
-      {isEvent && breakdown.specialTotal > 0 && (
-        <div className="special-notice">
-          🔴 Fecha especial: los eventos en
-          24/12, 25/12, 31/12 y 01/01 tienen tarifa
-          de $250.000 por día.
-        </div>
-      )}
+      {isEvent &&
+        breakdown.specialTotal > 0 && (
+          <div className="special-notice">
+            🔴 Fecha especial: los eventos en
+            24/12, 25/12, 31/12 y 01/01 tienen tarifa
+            de $250.000 por día.
+          </div>
+        )}
 
       {!isEvent &&
         breakdown.specialGroups.length > 0 && (
