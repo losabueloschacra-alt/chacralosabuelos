@@ -535,6 +535,7 @@ export default function Home() {
                 <ReservationForm
                   start={selection.start}
                   end={selection.end}
+                  mode={mode}
                   onDone={handleDone}
                 />
               </div>
