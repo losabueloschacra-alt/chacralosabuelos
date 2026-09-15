@@ -116,7 +116,6 @@ export default function Home() {
       </header>
 
       <section className="booking" id="reservar">
-
         <div className="section-title">
           <span>01</span>
 
@@ -131,7 +130,6 @@ export default function Home() {
         </div>
 
         <div className="reservation-type-selector">
-
           <button
             type="button"
             className={
@@ -171,7 +169,6 @@ export default function Home() {
               Modalidad masiva · un solo día
             </small>
           </button>
-
         </div>
 
         {mode === 'stay' && (
@@ -180,7 +177,8 @@ export default function Home() {
 
             <span>
               Elegí tu fecha de ingreso y egreso. El valor es
-              de ${PRICING.stayPerNight.toLocaleString('es-AR')}
+              de $
+              {PRICING.stayPerNight.toLocaleString('es-AR')}
               por noche, con un mínimo de 2 noches.
             </span>
           </div>
@@ -191,8 +189,8 @@ export default function Home() {
             <b>EVENTO</b>
 
             <span>
-              Elegí un único día. El valor normal es de
-              ${PRICING.eventPerDay.toLocaleString('es-AR')}
+              Elegí un único día. El valor normal es de $
+              {PRICING.eventPerDay.toLocaleString('es-AR')}
               . Las fechas especiales tienen una tarifa
               diferencial.
             </span>
@@ -222,7 +220,6 @@ export default function Home() {
           className="rates rates-inline"
           aria-label="Tarifas"
         >
-
           <div>
             <small>ESTADÍA</small>
 
@@ -258,11 +255,9 @@ export default function Home() {
               Eventos en fechas especiales
             </span>
           </div>
-
         </section>
 
         <div className="capacity-note">
-
           <b>Capacidad</b>
 
           <span>
@@ -270,20 +265,18 @@ export default function Home() {
             {PRICING.maxPeople} personas. Los eventos son
             modalidad masiva y no tienen ese límite.
           </span>
-
         </div>
 
-        <ReservationForm
-          start={selection.start}
-          end={selection.end}
-          mode={mode}
-          onDone={handleDone}
-        />
-
+        {selection.start && selection.end && (
+          <ReservationForm
+            start={selection.start}
+            end={selection.end}
+            onDone={handleDone}
+          />
+        )}
       </section>
 
       <section className="info">
-
         <div>
           <b>Reserva</b>
 
@@ -318,11 +311,9 @@ export default function Home() {
             enviar el comprobante.
           </span>
         </div>
-
       </section>
 
       <footer>
-
         <span>
           LOS ABUELOS · CHACRA
         </span>
@@ -342,9 +333,7 @@ export default function Home() {
         <small>
           ALIAS: {ALIAS} · Cuenta Mercado Pago
         </small>
-
       </footer>
-
     </main>
   );
 }
