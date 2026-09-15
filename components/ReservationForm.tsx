@@ -45,15 +45,23 @@ export default function ReservationForm({
   mode?: string;
   onDone: () => void;
 }) {
-  const [eventMode, setEventMode] = useState(false);
+  const isEvent = mode === 'event';
 
-  const effectiveEnd = eventMode ? addOneDay(start) : end;
+  const effectiveEnd = isEvent
+    ? addOneDay(start)
+    : end;
 
-  const days = calculateDays(start, effectiveEnd);
+  const days = calculateDays(
+    start,
+    effectiveEnd
+  );
 
   const autoType: ReservationType = useMemo(
-    () => (isFridayToSunday(start, end) ? 'weekend' : 'week'),
-    [start, end, eventMode]
+    () =>
+      isFridayToSunday(start, end)
+        ? 'weekend'
+        : 'week',
+    [start, end]
   );
 
   const [form, setForm] = useState({
@@ -68,7 +76,8 @@ export default function ReservationForm({
   const [message, setMessage] = useState('');
   const [payment, setPayment] = useState(false);
 
-  const type = eventMode ? 'event' : autoType;
+  const type: ReservationType =
+    isEvent ? 'event' : autoType;
 
   const breakdown = calculateBreakdown(
     type,
@@ -89,11 +98,6 @@ export default function ReservationForm({
     }));
   };
 
-  function toggleEvent() {
-    setEventMode((v) => !v);
-    setMessage('');
-  }
-
   async function submit(e: FormEvent) {
     e.preventDefault();
     setMessage('');
@@ -102,8 +106,10 @@ export default function ReservationForm({
       return setMessage('Elegí una fecha.');
     }
 
-    if (!eventMode && !end) {
-      return setMessage('Elegí la fecha de egreso.');
+    if (!isEvent && !end) {
+      return setMessage(
+        'Elegí la fecha de egreso.'
+      );
     }
 
     if (days < 1) {
@@ -112,7 +118,7 @@ export default function ReservationForm({
       );
     }
 
-    if (!eventMode && days < 2) {
+    if (!isEvent && days < 2) {
       return setMessage(
         'La estadía tiene un mínimo de 2 días.'
       );
@@ -121,7 +127,7 @@ export default function ReservationForm({
     const people = Number(form.people);
 
     if (
-      !eventMode &&
+      !isEvent &&
       (
         !Number.isInteger(people) ||
         people < 1 ||
@@ -155,8 +161,8 @@ export default function ReservationForm({
           action: 'create',
           type,
           start,
-          end: eventMode ? effectiveEnd : end,
-          people: eventMode ? 0 : people,
+          end: effectiveEnd,
+          people: isEvent ? 0 : people,
           name: form.name.trim(),
           phone: form.phone.trim(),
           email: form.email.trim(),
@@ -178,7 +184,6 @@ export default function ReservationForm({
       }
 
       setPayment(true);
-      onDone();
     } catch {
       setMessage(
         'No pudimos conectar con el sistema. Intentá nuevamente.'
@@ -248,7 +253,7 @@ Adjunto el comprobante.`
           <div>
             <span>Personas</span>
             <b>
-              {eventMode
+              {isEvent
                 ? 'Modalidad masiva'
                 : form.people}
             </b>
@@ -278,7 +283,7 @@ Adjunto el comprobante.`
           </p>
 
           <strong>
-            Alias: Evelyn Maroli
+            Alias: evelynmaroli
           </strong>
 
           <b className="alias-owner">
@@ -288,7 +293,9 @@ Adjunto el comprobante.`
           <button
             type="button"
             onClick={() => {
-              navigator.clipboard?.writeText(ALIAS);
+              navigator.clipboard?.writeText(
+                'evelynmaroli'
+              );
               setMessage('Alias copiado');
             }}
           >
@@ -332,7 +339,7 @@ Adjunto el comprobante.`
 
         <span>
           {days} días ·{' '}
-          {eventMode
+          {isEvent
             ? 'Modalidad masiva · 1 día'
             : end
             ? `Hasta ${MAX_PEOPLE} personas · mínimo 2 días`
@@ -340,28 +347,16 @@ Adjunto el comprobante.`
         </span>
       </div>
 
-      <button
-        type="button"
-        className={`event-toggle ${
-          eventMode ? 'active' : ''
-        }`}
-        onClick={toggleEvent}
-      >
-        {eventMode
-          ? '✓ EVENTO SELECCIONADO'
-          : 'QUIERO RESERVAR PARA UN EVENTO'}
-      </button>
-
       <div className="type-note">
         <b>
-          {eventMode
+          {isEvent
             ? 'EVENTO'
             : 'TIPO DE ESTADÍA'}
         </b>
 
         <span>
-          {eventMode
-            ? breakdown.specialGroups.length
+          {isEvent
+            ? breakdown.specialEventDates?.length
               ? 'Modalidad masiva · $250.000 por día en fecha especial'
               : 'Modalidad masiva · $200.000 por día'
             : end
@@ -377,7 +372,6 @@ Adjunto el comprobante.`
       <div className="two">
         <label>
           Nombre y apellido
-
           <input
             required
             value={form.name}
@@ -390,7 +384,6 @@ Adjunto el comprobante.`
 
         <label>
           Teléfono / WhatsApp
-
           <input
             required
             value={form.phone}
@@ -405,7 +398,6 @@ Adjunto el comprobante.`
       <div className="two">
         <label>
           Email
-
           <input
             required
             type="email"
@@ -417,10 +409,9 @@ Adjunto el comprobante.`
           />
         </label>
 
-        {eventMode ? (
+        {isEvent ? (
           <label>
             Personas
-
             <input
               value="Modalidad masiva"
               disabled
@@ -429,7 +420,6 @@ Adjunto el comprobante.`
         ) : (
           <label>
             ¿Cuántas personas?
-
             <input
               required
               type="number"
@@ -449,7 +439,6 @@ Adjunto el comprobante.`
 
       <label>
         Observaciones (opcional)
-
         <textarea
           rows={3}
           value={form.notes}
@@ -467,12 +456,15 @@ Adjunto el comprobante.`
               ? 'Tarifa normal + especial'
               : 'Precio'}
           </small>
-
           <b>{money(total)}</b>
         </div>
 
         <small>
-          {breakdown.specialGroups.length
+          {isEvent
+            ? breakdown.specialTotal > 0
+              ? 'Fecha especial · '
+              : ''
+            : breakdown.specialGroups.length
             ? `${breakdown.specialGroups
                 .map(
                   (x) =>
@@ -484,13 +476,21 @@ Adjunto el comprobante.`
         </small>
       </div>
 
-      {breakdown.specialGroups.length > 0 && (
+      {isEvent && breakdown.specialTotal > 0 && (
         <div className="special-notice">
           🔴 Fecha especial: los eventos en
           24/12, 25/12, 31/12 y 01/01 tienen tarifa
           de $250.000 por día.
         </div>
       )}
+
+      {!isEvent &&
+        breakdown.specialGroups.length > 0 && (
+          <div className="special-notice">
+            🔴 Fecha especial de estadía incluida
+            en el cálculo.
+          </div>
+        )}
 
       <p className="rain">
         ☁ {RAIN_TEXT}
